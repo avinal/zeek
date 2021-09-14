@@ -194,11 +194,11 @@ void build_inner_packet(Packet* inner_pkt, Packet* outer_pkt,
 	*encap_index = 0;
 	if ( outer_pkt->session )
 		{
-		if ( encapsulation_protocol )
+		if ( tunnel_confirmation )
 			{
 			const auto& n = zeek::packet_mgr->GetComponentName(analyzer_tag.AsVal());
-			event_mgr.Enqueue(encapsulation_protocol, outer_pkt->session->GetVal(),
-			                  make_intrusive<StringVal>(n));
+			event_mgr.Enqueue(tunnel_confirmation, outer_pkt->session->GetVal(),
+			                  analyzer_tag.AsVal());
 			}
 
 		EncapsulatingConn inner(static_cast<Connection*>(outer_pkt->session), tunnel_type);

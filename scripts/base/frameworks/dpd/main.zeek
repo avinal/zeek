@@ -35,7 +35,7 @@ export {
 	## Number of protocol violations to tolerate before disabling an analyzer.
 	option max_violations: table[Analyzer::Tag] of count = table() &default = 5;
 
-	## Analyzers which you don't want to throw 
+	## Analyzers which you don't want to throw
 	option ignore_violations: set[Analyzer::Tag] = set();
 
 	## Ignore violations which go this many bytes into the connection.
@@ -53,14 +53,26 @@ event zeek_init() &priority=5
 	Log::create_stream(DPD::LOG, [$columns=Info, $path="dpd", $policy=log_policy]);
 	}
 
-event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count) &priority=10
+function handle_confirmation(c: connection, atype: Analyzer::Tag)
 	{
+print "a";
 	local analyzer = Analyzer::name(atype);
+print "b";
 
 	if ( fmt("-%s",analyzer) in c$service )
 		delete c$service[fmt("-%s", analyzer)];
 
 	add c$service[analyzer];
+	}
+
+event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count) &priority=10
+	{
+	handle_confirmation(c, Analyzer::name(atype));
+	}
+
+event tunnel_confirmation(c: connection, atype: Analyzer::Tag) &priority=10
+	{
+	handle_confirmation(c, atype);
 	}
 
 event protocol_violation(c: connection, atype: Analyzer::Tag, aid: count,

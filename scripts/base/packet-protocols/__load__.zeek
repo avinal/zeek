@@ -1,5 +1,3 @@
-@load ./main
-
 @load base/packet-protocols/root
 @load base/packet-protocols/ip
 @load base/packet-protocols/skip

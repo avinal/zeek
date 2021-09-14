@@ -84,7 +84,7 @@ export {
 }
 
 redef record connection += {
-	# This field is to indicate whether or not the processing for detecting 
+	# This field is to indicate whether or not the processing for detecting
 	# and logging the service for this connection is complete.
 	known_services_done: bool &default=F;
 };
@@ -298,6 +298,11 @@ event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count) &pr
 	known_services_done(c);
 	}
 
+event tunnel_confirmation(c: connection, atype: Analyzer::Tag) &priority=-5
+	{
+	known_services_done(c);
+	}
+
 # Handle the connection ending in case no protocol was ever detected.
 event connection_state_remove(c: connection) &priority=-5
 	{
@@ -314,4 +319,3 @@ event zeek_init() &priority=5
 	                                         $path="known_services",
 						 $policy=log_policy_services]);
 	}
-

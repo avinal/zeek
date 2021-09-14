@@ -198,7 +198,7 @@ hook finalize_protocol_detection(c: connection)
 	report_protocols(c);
 	}
 
-event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count)
+function handle_confirmation(c: connection: atype: AnalyzerTag)
 	{
 	# Don't report anything running on a well-known port.
 	if ( c$id$resp_p in Analyzer::registered_ports(atype) )
@@ -217,6 +217,16 @@ event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count)
 		local delay = min_interval(minimum_duration, check_interval);
 		schedule delay { ProtocolDetector::check_connection(c) };
 		}
+	}
+
+event protocol_confirmation(c: connection, atype: Analyzer::Tag, aid: count)
+	{
+	handle_confirmation(c, atype);
+	}
+
+event tunnel_confirmation(c: connection, atype: Analyzer::Tag, aid: count)
+	{
+	handle_confirmation(c, atype);
 	}
 
 function found_protocol(c: connection, atype: Analyzer::Tag, protocol: string)
