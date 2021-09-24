@@ -348,11 +348,14 @@ when	return TOK_WHEN;
 @load-sigs{WS}{FILE} {
 	const char* file = zeek::util::skip_whitespace(yytext + 10);
 	std::string path = find_relative_file(file, ".sig");
-	int rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::SIGNATURES, file, path), -1);
 
-	switch ( rc ) {
+	std::pair<int, std::optional<std::string>> rc;
+	rc.first = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::SIGNATURES, file, path), -1);
+	if ( rc.first < 0 )
+		rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE_EXT, HookLoadFileExtended(zeek::plugin::Plugin::SIGNATURES, file, path), std::make_pair(-1, std::nullopt));
+
+	switch ( rc.first ) {
 	case -1:
-		// No plugin in charge of this file.
 		if ( path.empty() )
 			zeek::reporter->Error("failed to find file associated with @load-sigs %s",
 			                      file);
@@ -369,6 +372,8 @@ when	return TOK_WHEN;
 
 	case 1:
 		// A plugin took care of it, just skip.
+		// TODO: Handle signature content supplied by scripts
+		// No plugin in charge of this file.
 		break;
 
 	default:
@@ -379,9 +384,12 @@ when	return TOK_WHEN;
 
 @load-plugin{WS}{ID} {
 	const char* plugin = zeek::util::skip_whitespace(yytext + 12);
-	int rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::PLUGIN, plugin, ""), -1);
+	std::pair<int, std::optional<std::string>> rc;
+	rc.first = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::PLUGIN, plugin, ""), -1);
+	if ( rc.first < 0 )
+		rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE_EXT, HookLoadFileExtended(zeek::plugin::Plugin::PLUGIN, plugin, ""), std::make_pair(-1, std::nullopt));
 
-	switch ( rc ) {
+	switch ( rc.first ) {
 	case -1:
 		// No plugin in charge of this file.
 		zeek::plugin_mgr->ActivateDynamicPlugin(plugin);
@@ -586,12 +594,13 @@ YYLTYPE zeek::detail::GetCurrentLocation()
 static int load_files(const char* orig_file)
 	{
 	std::string file_path = find_relative_script_file(orig_file);
-	int rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::SCRIPT, orig_file, file_path), -1);
 
-	if ( rc == 1 )
-		return 0; // A plugin took care of it, just skip.
+	std::pair<int, std::optional<std::string>> rc = {-1, std::nullopt};
+	rc.first = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE, HookLoadFile(zeek::plugin::Plugin::SCRIPT, orig_file, file_path), -1);
+	if ( rc.first < 0 )
+		rc = PLUGIN_HOOK_WITH_RESULT(HOOK_LOAD_FILE_EXT, HookLoadFileExtended(zeek::plugin::Plugin::SCRIPT, orig_file, file_path), std::make_pair(-1, std::nullopt));
 
-	if ( rc == 0 )
+	if ( rc.first == 0 )
 		{
 		if ( ! zeek::reporter->Errors() )
 			// This is just in case the plugin failed to report
@@ -602,41 +611,45 @@ static int load_files(const char* orig_file)
 		exit(1);
 		}
 
-	assert(rc == -1); // No plugin in charge of this file.
+	if ( rc.first == 1 && ! rc.second )
+		return 0; // A plugin took care of it, just skip.
 
 	FILE* f = nullptr;
 
-	if ( zeek::util::streq(orig_file, "-") )
+	if ( rc.first == -1 )
 		{
-		f = stdin;
-		file_path = zeek::detail::ScannedFile::canonical_stdin_path;
-
-		if ( zeek::detail::g_policy_debug )
+		if ( zeek::util::streq(orig_file, "-") )
 			{
-			zeek::detail::debug_msg("Warning: can't use debugger while reading policy from stdin; turning off debugging.\n");
-			zeek::detail::g_policy_debug = false;
+			f = stdin;
+			file_path = zeek::detail::ScannedFile::canonical_stdin_path;
+
+			if ( zeek::detail::g_policy_debug )
+				{
+				zeek::detail::debug_msg("Warning: can't use debugger while reading policy from stdin; turning off debugging.\n");
+				zeek::detail::g_policy_debug = false;
+				}
 			}
-		}
 
-	else
-		{
-		if ( file_path.empty() )
-			zeek::reporter->FatalError("can't find %s", orig_file);
-
-		if ( zeek::util::is_dir(file_path.c_str()) )
-			f = zeek::util::detail::open_package(file_path);
 		else
-			f = zeek::util::open_file(file_path);
+			{
+			if ( file_path.empty() )
+				zeek::reporter->FatalError("can't find %s", orig_file);
 
-		if ( ! f )
-			zeek::reporter->FatalError("can't open %s", file_path.c_str());
+			if ( zeek::util::is_dir(file_path.c_str()) )
+				f = zeek::util::detail::open_package(file_path);
+			else
+				f = zeek::util::open_file(file_path);
+
+			if ( ! f )
+				zeek::reporter->FatalError("can't open %s", file_path.c_str());
+			}
 		}
 
 	zeek::detail::ScannedFile sf(file_stack.length(), file_path);
 
 	if ( sf.AlreadyScanned() )
 		{
-		if ( f != stdin )
+		if ( rc.first == -1 && f != stdin )
 			fclose(f);
 
 		return 0;
@@ -659,12 +672,24 @@ static int load_files(const char* orig_file)
 
 	zeek::detail::zeekygen_mgr->Script(file_path);
 
-	DBG_LOG(zeek::DBG_SCRIPTS, "Loading %s", file_path.c_str());
-
 	// "orig_file", could be an alias for yytext, which is ephemeral
 	//  and will be zapped after the yy_switch_to_buffer() below.
-	yy_switch_to_buffer(yy_create_buffer(f, YY_BUF_SIZE));
+	YY_BUFFER_STATE buffer;
 
+	if ( rc.first == 1 ) {
+		// Parse code provided by plugin.
+		DBG_LOG(zeek::DBG_SCRIPTS, "Loading %s from code supplied by plugin ", file_path.c_str());
+		assert(rc.second);
+		buffer = yy_scan_bytes(rc.second->data(), rc.second->size()); // this copies the data
+		}
+	else {
+		// Parse from file.
+		DBG_LOG(zeek::DBG_SCRIPTS, "Loading %s", file_path.c_str());
+		assert(f);
+		buffer = yy_create_buffer(f, YY_BUF_SIZE);
+		}
+
+	yy_switch_to_buffer(buffer);
 	yylloc.first_line = yylloc.last_line = line_number = 1;
 
 	// Don't delete the old filename - it's pointed to by

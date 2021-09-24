@@ -241,9 +241,16 @@ public:
 	 * @return 1 if a plugin took over the file and loaded it successfully; 0
 	 * if a plugin took over the file but had trouble loading it; and -1 if
 	 * no plugin was interested in the file at all.
+	 *
+	 * TODO: Extend description.
 	 */
 	virtual int HookLoadFile(const Plugin::LoadType type, const std::string& file,
 	                         const std::string& resolved);
+
+	/**
+	 * TODO: Description.
+	 */
+	virtual std::pair<int, std::optional<std::string>> HookLoadFileExtended(const Plugin::LoadType type, const std::string& file, const std::string& resolved);
 
 	/**
 	 * Hook that filters calls to a script function/event/hook.

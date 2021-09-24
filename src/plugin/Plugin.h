@@ -56,6 +56,7 @@ enum HookType
 	{
 	// Note: when changing this table, update hook_name() in Plugin.cc.
 	HOOK_LOAD_FILE, //< Activates Plugin::HookLoadFile().
+	HOOK_LOAD_FILE_EXT, //< Activates Plugin::HookLoadFileExtended().
 	HOOK_CALL_FUNCTION, //< Activates Plugin::HookCallFunction().
 	HOOK_QUEUE_EVENT, //< Activates Plugin::HookQueueEvent().
 	HOOK_DRAIN_EVENTS, //< Activates Plugin::HookDrainEvents()
@@ -813,6 +814,10 @@ protected:
 	 */
 	virtual int HookLoadFile(const LoadType type, const std::string& file,
 	                         const std::string& resolved);
+
+	/** TODO */
+	virtual std::pair<int, std::optional<std::string>>
+	HookLoadFileExtended(const LoadType type, const std::string& file, const std::string& resolved);
 
 	/**
 	 * Hook into executing a script-level function/event/hook. Whenever

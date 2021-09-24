@@ -22,6 +22,7 @@ const char* hook_name(HookType h)
 	static constexpr const char* hook_names[int(NUM_HOOKS) + 1] = {
 		// Order must match that of HookType.
 		"LoadFile",
+		"LoadFileExtended",
 		"CallFunction",
 		"QueueEvent",
 		"DrainEvents",
@@ -366,6 +367,13 @@ void Plugin::RequestBroObjDtor(Obj* obj)
 int Plugin::HookLoadFile(const LoadType type, const std::string& file, const std::string& resolved)
 	{
 	return -1;
+	}
+
+std::pair<int, std::optional<std::string>> Plugin::HookLoadFileExtended(const LoadType type,
+                                                                        const std::string& file,
+                                                                        const std::string& resolved)
+	{
+	return std::make_pair(-1, std::nullopt);
 	}
 
 std::pair<bool, ValPtr> Plugin::HookFunctionCall(const Func* func, zeek::detail::Frame* parent,
