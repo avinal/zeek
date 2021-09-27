@@ -247,6 +247,9 @@ bool PcapSource::ExtractNextPacket(Packet* pkt)
 	++stats.received;
 	stats.bytes_received += header->len;
 
+	header->len = 0;
+	header->caplen = 0;
+
 	return true;
 	}
 
