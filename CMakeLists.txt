@@ -188,7 +188,7 @@ if ( ZEEK_SANITIZERS )
                 list(APPEND _check_list "unreachable")
                 # list(APPEND _check_list "unsigned-integer-overflow") # Not truly UB
                 list(APPEND _check_list "vla-bound")
-                # list(APPEND _check_list "vptr") # TODO: fix associated errors
+                list(APPEND _check_list "vptr") # TODO: fix associated errors
 
                 string(REPLACE ";" "," _ub_checks "${_check_list}")
                 set(ZEEK_SANITIZER_UB_CHECKS "${_ub_checks}" CACHE INTERNAL "" FORCE)
