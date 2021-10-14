@@ -36,6 +36,7 @@ ci_template: &CI_TEMPLATE
     ( $CIRRUS_REPO_NAME == 'zeek' &&
       (
       $CIRRUS_BRANCH == 'master' ||
+      $CIRRUS_BRANCH == 'topic/timw/fix-debian9-build' ||
       $CIRRUS_BRANCH =~ 'release/.*'
       )
     )
