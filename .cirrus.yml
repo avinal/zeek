@@ -95,7 +95,7 @@ env:
 # Fedora (~13 months): https://fedoraproject.org/wiki/Fedora_Release_Life_Cycle
 
 ubuntu18_task:
-  container:
+  arm_container:
     # Ubuntu 18.04 EOL: April 2023
     dockerfile: ci/ubuntu-18.04/Dockerfile
     << : *RESOURCES_TEMPLATE
